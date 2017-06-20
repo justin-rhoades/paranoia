@@ -178,6 +178,13 @@ class ParanoiaTest < test_framework
     assert record.update_columns deleted_at: Time.now
   end
 
+  def test_dirty_tracking_on_paranoia_destroyed
+    record = ParentModel.create
+    record.destroy
+
+    assert_equal record.previous_changes.keys, ["deleted_at"]
+  end
+
   def test_scoping_behavior_for_paranoid_models
     parent1 = ParentModel.create
     parent2 = ParentModel.create
@@ -207,6 +214,13 @@ class ParanoiaTest < test_framework
     assert_equal 1, ActiveColumnModelWithHasManyRelationship.count
     assert_equal 1, ActiveColumnModelWithHasManyRelationship.only_deleted.count
     assert_equal 1, ActiveColumnModelWithHasManyRelationship.only_deleted.joins(:paranoid_model_with_belongs_to_active_column_model_with_has_many_relationships).count
+  end
+
+  def test_dirty_tracking_for_custom_column_models
+    record = CustomColumnModel.create
+    record.destroy
+
+    assert_equal record.previous_changes.keys, ["destroyed_at"]
   end
 
   def test_destroy_behavior_for_custom_column_models
@@ -255,6 +269,13 @@ class ParanoiaTest < test_framework
     assert_equal 1, model.class.unscoped.count
     assert_equal 1, model.class.only_deleted.count
     assert_equal 1, model.class.deleted.count
+  end
+
+  def test_dirty_tracking_for_active_column_model
+    record = ActiveColumnModel.create
+    record.destroy
+
+    assert_equal record.previous_changes.keys, ["deleted_at", "active"]
   end
 
   def test_active_column_model_with_uniqueness_validation_only_checks_non_deleted_records
@@ -441,6 +462,18 @@ class ParanoiaTest < test_framework
     model.reload
 
     assert_equal false, model.paranoia_destroyed?
+  end
+
+  def test_dirty_tracking_on_restore
+    model = ParanoidModel.new
+    model.save
+    id = model.id
+    model.destroy
+
+    model = ParanoidModel.only_deleted.find(id)
+    model.restore!
+
+    assert_equal model.previous_changes.keys, ["deleted_at"]
   end
 
   def test_restore_on_object_return_self
